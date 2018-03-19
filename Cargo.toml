@@ -1,0 +1,10 @@
+[package]
+name = "simple"
+version = "0.1.0"
+authors = ["Robert Creed <kareed44@gmail.com>"]
+
+[dependencies]
+
+[dependencies.gtk]
+version = "0.3.0"
+features = ["v3_10"]
