@@ -1,11 +1,16 @@
+extern crate gio;
 extern crate gtk;
 
 use std::env;
+use std::io::BufReader;
+use std::fs::File;
+use std::io::prelude::*;
 mod input;
 mod logging;
 
+use gio::prelude::*;
 use gtk::prelude::*;
-use gtk::{Window, WindowPosition, WindowType, TextView, TextBuffer, Menu, MenuBar, MenuItem};
+use gtk::{Application, ApplicationWindow, WindowPosition, Box, Orientation, TextView, TextBuffer, Menu, MenuBar, MenuItem, MenuItemExt};
 
 //Cargo puts the build version into an environment variable at build time
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -13,6 +18,7 @@ const LOG_LEVEL_ENV_VAR_NAME: &'static str = "SIMPLE_LOG_LEVEL";
 const TITLE: &'static str = "simple";
 
 fn main() {
+
     //Parse the input to get options
     let args: Vec<String> = env::args().collect();
     let options = input::parse_input_to_options(&args);
@@ -31,8 +37,16 @@ fn main() {
         return;
     }
 
-    establish_gui();
-    gtk::main();
+    let application = Application::new( "com.kareed44.simple",
+                                        gio::ApplicationFlags::empty())
+                                        .expect("Initialization failed...");
+
+    application.connect_startup(move |app| {
+        establish_gui(app);
+    });
+    application.connect_activate(|_| {});
+
+    application.run(&args);
 }
 
 fn print_usage() {
@@ -56,18 +70,16 @@ fn enable_debug_logging() {
     logging::debugln("Debug logging enabled");
 }
 
-fn establish_gui() {
-    if gtk::init().is_err() {
-        println!("Failed to initialize GTK.");
-    }
+fn establish_gui(application: &Application) {
+    let window = ApplicationWindow::new(application);
 
-    let window = Window::new(WindowType::Toplevel);
+    //let window = Window::new(WindowType::Toplevel);
     window.set_title(TITLE);
     window.set_default_size(800, 400);
     window.set_position(WindowPosition::Center);
 
     //Vertical box that will be our main container for everything
-    let main_box = gtk::Box::new(gtk::Orientation::Vertical, 1);
+    let main_box = Box::new(Orientation::Vertical, 1);
 
     //Create the menu
     let file_menu = Menu::new();
@@ -92,8 +104,26 @@ fn establish_gui() {
     window.add(&main_box);
     window.show_all();
 
-    window.connect_delete_event(|_, _| {
-        gtk::main_quit();
-        Inhibit(false)
+    //Open button implementation
+    open_file_item.connect_activate(move |_| {
+
+        let file_chooser = gtk::FileChooserDialog::new(Some("Open File"), Some(&window), gtk::FileChooserAction::Open);
+        file_chooser.add_buttons(&[
+            ("Open", gtk::ResponseType::Ok.into()),
+            ("Cancel", gtk::ResponseType::Cancel.into()),
+        ]);
+
+        if file_chooser.run() == gtk::ResponseType::Ok.into() {
+            let filename = file_chooser.get_filename().expect("Couldn't get filename");
+            let file = File::open(&filename).expect("Couldn't open file");
+
+            let mut reader = BufReader::new(file);
+            let mut contents = String::new();
+            let _ = reader.read_to_string(&mut contents);
+
+            main_text_buffer.set_text(&contents);
+        }
+
+        file_chooser.destroy();
     });
 }

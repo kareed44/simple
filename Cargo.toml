@@ -4,7 +4,8 @@ version = "0.1.0"
 authors = ["Robert Creed <kareed44@gmail.com>"]
 
 [dependencies]
+gio = "0.4.0"
+gtk = "0.4.0"
 
-[dependencies.gtk]
-version = "0.3.0"
-features = ["v3_10"]
+[features]
+gtk_3_16 = ["gtk/v3_16"]
